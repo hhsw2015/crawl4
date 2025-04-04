@@ -59,6 +59,16 @@ def git_commit(message):
         # 如果提交失败，记录错误但不中断程序
         pass
 
+def extract_magnet_prefix(magnet_link):
+    """提取磁力链接的前缀，只保留 magnet:?xt=urn:btih:hash 部分"""
+    if magnet_link.startswith("magnet:?xt=urn:btih:"):
+        # 找到第一个 & 的位置，截取前面的部分
+        end_index = magnet_link.find("&")
+        if end_index != -1:
+            return magnet_link[:end_index]
+        return magnet_link  # 如果没有 &，返回整个链接（理论上不会发生）
+    return "N/A"
+
 def crawl_page(t_id, retries=0):
     """爬取单个页面并提取数据，带重试机制"""
     url = f"https://xxxclub.to/torrents/details/{t_id}"
@@ -85,13 +95,13 @@ def crawl_page(t_id, retries=0):
                         value = spans[2].text.strip()
                         if key == "Size":
                             size = value
-                    # 提取磁力链接
+                    # 提取磁力链接并只保留前缀
                     if "downloadboxlist" in li.get("class", []):
                         magnet_link = li.find("a", class_="mg-link btn b-o-s")
                         if magnet_link and "href" in magnet_link.attrs:
-                            magnet = magnet_link["href"]
+                            magnet = extract_magnet_prefix(magnet_link["href"])
 
-        logging.info(f"Scraped ID {t_id}: {title}, Size: {size}")
+        logging.info(f"Scraped ID {t_id}: {title}, Size: {size}, Magnet: {magnet}")
         return {"id": t_id, "title": title, "size": size, "magnet": magnet}
 
     except requests.RequestException as e:
@@ -145,6 +155,6 @@ def crawl_torrent_pages(start_id, end_id):
 if __name__ == "__main__":
     logging.info("Starting crawl...")
     start_id = int(os.getenv("START_ID", 1))
-    end_id = int(os.getenv("END_ID", 303433))
+    end_id = int(os.getenv("END_ID", 1000))
     crawl_torrent_pages(start_id, end_id)
     logging.info(f"Data saved to {csv_file}")
